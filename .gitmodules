@@ -1,0 +1,3 @@
+[submodule "BlocklyDuino"]
+	path = BlocklyDuino
+	url = git@github.com:gasolin/BlocklyDuino.git
