@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>BlocklyDuino</title>
+  <link rel="stylesheet" href="css/materialize.min.css"/>
+  <style>
+    html, body { height: 100%; }
+    body { background-color: #fff;  margin: 0; overflow: hidden; }
+    table { border-collapse: collapse; margin: 0; padding: 0; border: none; }
+    td { padding: 0; vertical-align: top; }
+    [contenteditable]:focus { outline: 0px solid transparent; }
+    .content { visibility: hidden; margin: 0; padding: 1ex; position: absolute; direction: ltr; }
+    .blocklySvg { border-top: none !important; }
+    .blocklyToolboxDiv { background-color: rgba(238, 110, 115, .3) !important; overflow-x: hidden !important; }
+    .blocklyTreeRoot { margin-top: 33px; }
+    .blocklyTreeRow { box-sizing: content-box; padding-top: 8px; padding-bottom: 8px; }
+    .blocklyTreeRow.blocklyTreeSelected { background-color: #EE6E73 !important; }
+    .blocklyTreeRow:not(.blocklyTreeSelected):hover { background-color: #EE6E73 !important; }
+    .blocklyFlyoutBackground { fill: #FBE2E3 !important; fill-opacity: 0.7 !important; }
+    .sr-only {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+    nav a.button-collapse { display: block; margin-right: 16px; }
+    nav a.dropdown-button { overflow: auto; }
+    .modal-small { height: 30% !important; min-height: 200px; }
+    @media only screen and (min-width: 0) {
+      .modal-small { max-width: 75% !important; width: 75% !important; }
+    }
+    @media only screen and (min-width: 601px) {
+      .modal-small { max-width: 55% !important; width: 55% !important; }
+    }
+    @media only screen and (min-width: 993px) {
+      .modal-small { max-width: 35% !important; width: 35% !important; }
+    }
+    #side-nav .logo { color: #333; text-align: center; line-height: 20px; padding-top: 32px; padding-bottom: 32px; }
+    #content_blocks { padding: 0; }
+    #content_arduino { background-color: #fff; border: none; overflow: scroll; }
+    #content_xml { resize: none; outline: none; border: none; font-family: monospace; overflow: scroll; }
+    #button_toggle_toolbox { text-align:center; padding: 0; }
+    #button_toggle_toolbox.on { background-color: rgba(238, 110, 115, .3) !important; width: 40px; }
+    #btn-run > i:after { content:""; background-color: #ff9800; border-radius: 50%; width: 32px; height: 32px; position:absolute; top: 16px; left: 14px; z-index: -1; }
+    #modal-console { background-color: #F5F2F0; height: 45%; }
+    #console-content { overflow: visible; }
+  </style>
+  <script type="text/javascript" src="../BlocklyDuino/blockly/blockly_compressed.js"></script>
+  <script type="text/javascript" src="../BlocklyDuino/blockly/blocks_compressed.js"></script>
+  <script type="text/javascript" src="../BlocklyDuino/blockly/arduino_compressed.js"></script>
+  <script type="text/javascript" src="js/Blob.js"></script>
+  <script type="text/javascript" src="js/FileSaver.min.js"></script>
+  <script type="text/javascript" src="js/jquery-1.11.2.min.js"></script>
+  <script type="text/javascript" src="js/materialize.min.js"></script>
+  <script type="text/javascript" src="js/storage.js"></script>
+  <script type="text/javascript" src="js/code.js"></script>
+  <script type="text/javascript">
+    $(function() {
+      $(".button-collapse").sideNav();
+      $('.modal-trigger').leanModal();
+    });
+  </script>
+</head>
+<body>
+  <table height="100%" width="100%">
+    <tr>
+      <td>
+        <nav>
+          <div class="nav-wrapper">
+            <a href="#" class="button-collapse" data-activates="side-nav"><i class="mdi-navigation-menu"></i></a>
+            <a href="#" class="brand-logo logo">BlocklyDuino</a>
+            <ul class="right hide-on-med-and-down">
+              <li><a id="btn-load" href="#" class="tooltipped" data-position="bottom" data-delay="50" data-tooltip="Open"><i class="mdi-file-file-upload"></i> <span class="sr-only">Open</span></a></li>
+              <li><a id="btn-save" href="#" class="tooltipped" data-position="bottom" data-delay="50" data-tooltip="Save"><i class="mdi-file-file-download"></i> <span class="sr-only">Save</span></a></li>
+              <li><a id="btn-trash" href="#" class="tooltipped" data-position="bottom" data-delay="50" data-tooltip="Discard"><i class="mdi-action-delete"></i> <span class="sr-only">Discard</span></a></li>
+              <li><a id="btn-run" style="display:none" href="#" class="tooltipped waves-effect waves-light" data-position="bottom" data-delay="50" data-tooltip="Run"><i class="mdi-av-play-arrow left"></i> <span class="hide-on-med-and-down">Run</span></a></li>
+              <li style="display:none">
+                <a class="dropdown-button" href="#" data-activates="dropdown-ports"><i class="mdi-navigation-arrow-drop-down right"></i> <span id="select-port"></span></a>
+                <ul id="dropdown-ports" class="dropdown-content"></ul>
+              </li>
+              <li><a id="btn-console" href="#modal-console" class="tooltipped waves-effect waves-light modal-trigger" data-position="bottom" data-delay="50" data-tooltip="Console"><i class="mdi-action-info-outline"></i> <span class="sr-only">Console</span></a></li>
+              <li><a target="_blank" href="https://github.com/smeshlink/BlocklyDuino">View on Github</a></li>
+            </ul>
+            <ul id="side-nav" class="side-nav indigo lighten-5">
+              <li class="logo"><img src="blockly.ico"/> <img src="arduino.ico"/> <br/> <span>BlocklyDuino</span></li>
+              <li><a id="menu-load" href="#"><i class="mdi-file-file-upload left"></i> <span>Open</span></a></li>
+              <li><a id="menu-save" href="#"><i class="mdi-file-file-download left"></i> <span>Save</span></a></li>
+              <li><a id="menu-trash" href="#"><i class="mdi-action-delete left"></i> <span>Discard</span></a></li>
+              <li><a id="menu-run" href="#" style="display:none"><i class="mdi-av-play-arrow left"></i> <span>Run</span></a></li>
+              <li style="display:none"><a href="#"><i class="mdi-action-settings left"></i> <span>Settings</span></a></li>
+              <li class="no-padding">
+                <ul class="collapsible collapsible-accordion">
+                  <li style="display:none">
+                    <a id="menu-browse" class="collapsible-header waves-effect waves-teal"><i class="mdi-action-open-in-browser"></i> <span>Browsers</span></a>
+                    <div class="collapsible-body">
+                      <ul id="dropdown-browsers"></ul>
+                    </div>
+                  </li>
+                </ul>
+              </li>
+              <li><a target="_blank" href="https://github.com/smeshlink/BlocklyDuino"><i class="mdi-action-visibility left"></i> View on Github</a></li>
+            </ul>
+          </div>
+        </nav>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <ul class="tabs" role="tablist">
+          <li role="presentation" class="tab"><a id="tab_blocks" href="#blocks" aria-controls="Blocks" role="tab"><i class="tab-icon mdi-action-extension"></i> <span id="tab_blocks_title">Blocks</span></a></li>
+          <li role="presentation" class="tab"><a id="tab_arduino" href="#arduino" aria-controls="Arduino" role="tab"><span class="tab-icon">{ }</span> Arduino</a></li>
+          <li role="presentation" class="tab"><a id="tab_xml" href="#xml" aria-controls="XML" role="tab"><span class="tab-icon">&lt; &gt;</span> XML</a></li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td height="99%" id="content_area">
+        <div id="blocks">
+          <a id="button_toggle_toolbox" class="waves-effect waves-light btn-flat off"><i id="button_toggle_toolbox_icon" class="mdi-action-visibility-off"></i></a>
+          <div id="content_blocks" class="content"></div>
+        </div>
+        <div id="arduino">
+          <pre id="content_arduino" class="content" contenteditable="true"></pre>
+        </div>
+        <div id="xml">
+          <textarea id="content_xml" class="content" wrap="off"></textarea>
+        </div>
+      </td>
+    </tr>
+  </table>
+  
+  <div id="modal-alert" class="modal modal-small modal-fixed-footer">
+    <div class="modal-content">
+      <h4 id="modal-alert-title"></h4>
+      <p id="modal-alert-body"></p>
+    </div>
+    <div class="modal-footer">
+      <a id="modal-alert-ok" href="#" class="modal-action modal-close waves-effect waves-green btn-flat">OK</a>
+      <a id="modal-alert-cancel" href="#" class="modal-action modal-close waves-effect waves-green btn-flat">Cancel</a>
+    </div>
+  </div>
+  
+  <div id="modal-console" class="modal bottom-sheet">
+    <div class="modal-content">
+      <pre id="console-content"></pre>
+    </div>
+  </div>
+
+  <xml id="toolbox" style="display: none">
+    <category name="In/Out">
+      <block type="inout_highlow"></block>
+      <block type="inout_digital_write"></block>
+      <block type="inout_digital_read"></block>
+      <block type="inout_analog_write">
+        <value name="NUM">
+          <block type="math_number">
+            <field name="NUM">0</field>
+          </block>
+        </value>
+      </block>
+      <block type="inout_analog_read"></block>
+      <block type="serial_print">
+        <value name="CONTENT">
+          <block type="text">
+            <field name="TEXT"></field>
+          </block>
+        </value>
+      </block>
+      <block type="inout_buildin_led"></block>
+    </category>
+    <category name="Servo">
+      <block type="servo_move">
+        <value name="DEGREE">
+          <block type="math_number">
+            <field name="NUM">0</field>
+          </block>
+        </value>
+        <value name="DELAY_TIME">
+          <block type="math_number">
+            <field name="NUM">1000</field>
+          </block>
+        </value>
+      </block>
+      <block type="servo_read_degrees"></block>
+    </category>
+    <category name="Grove Analog">
+      <block type="grove_rotary_angle"></block>
+      <block type="grove_temporature_sensor"></block>
+      <block type="grove_sound_sensor"></block>
+      <block type="grove_thumb_joystick"></block>
+    </category>
+    <category name="Grove">
+      <block type="grove_led"></block>
+      <block type="grove_button"></block>
+      <block type="grove_relay"></block>
+      <block type="grove_tilt_switch"></block>
+      <block type="grove_piezo_buzzer"></block>
+      <block type="grove_pir_motion_sensor"></block>
+      <block type="grove_line_finder"></block>
+      <block type="grove_rgb_led"></block>
+      <block type="grove_rgb_led_container"></block>
+      <block type="grove_rgb_led_item"></block>
+    </category>
+    <category name="Grove LCD">
+      <block type="grove_serial_lcd_print">
+        <value name="TEXT">
+          <block type="text">
+            <field name="TEXT"></field>
+          </block>
+        </value>
+        <value name="TEXT2">
+          <block type="text">
+            <field name="TEXT"></field>
+          </block>
+        </value>
+        <value name="DELAY_TIME">
+          <block type="math_number">
+            <field name="NUM">1000</field>
+          </block>
+        </value>
+      </block>
+      <block type="grove_serial_lcd_power"></block>
+      <block type="grove_serial_lcd_effect"></block>
+      <block type="grove_ultrasonic_ranger"></block>
+    </category>
+    <category name="Grove Motor">
+      <block type="grove_motor_shield"></block>
+    </category>
+    <sep></sep>
+    <category id="catLogic" name="Logic">
+      <block type="controls_if"></block>
+      <block type="logic_compare"></block>
+      <block type="logic_operation"></block>
+      <block type="logic_negate"></block>
+      <block type="logic_null"></block>
+    </category>
+    <category name="Control">
+      <block type="base_delay">
+        <value name="DELAY_TIME">
+          <block type="math_number">
+            <field name="NUM">1000</field>
+          </block>
+        </value>
+      </block>
+      <block type="controls_for">
+        <value name="FROM">
+          <block type="math_number">
+            <field name="NUM">1</field>
+          </block>
+        </value>
+        <value name="TO">
+          <block type="math_number">
+            <field name="NUM">10</field>
+          </block>
+        </value>
+      </block>
+    </category>
+    <category id="catMath" name="Math">
+      <block type="base_map"></block>
+      <block type="math_number"></block>
+      <block type="math_arithmetic"></block>
+    </category>
+    <category id="catText" name="Text">
+      <block type="text"></block>
+    </category>
+    <sep></sep>
+    <category id="catVariables" name="Variables" custom="VARIABLE"></category>
+    <category id="catFunctions" name="Functions" custom="PROCEDURE"></category>
+  </xml>
+</body>
+</html>
